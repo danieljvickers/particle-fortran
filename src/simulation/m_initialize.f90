@@ -1,4 +1,5 @@
 module initialize_data
+    use constants
     implicit none
 
     type :: Asteroid_t
@@ -57,7 +58,7 @@ contains
             ! randomly distribute the positions of the particles in the allowed anulus
             call get_random_number(temp_val_1, radius_lower**2, radius_upper**2)  ! temp radius
             temp_val_1 = sqrt(temp_val_1)
-            call get_random_number(temp_val_2, 0, 2*C_PI)  ! temp angle
+            call get_random_number(temp_val_2, dble(0.0), 2.0*C_PI)  ! temp angle
             asteroids%x(i) = temp_val_1 * cos(temp_val_2)
             asteroids%y(i) = temp_val_1 * sin(temp_val_2)
 
@@ -66,9 +67,13 @@ contains
 
             ! generate the momentums
             temp_val_2 = sqrt(C_G * solar_mass / temp_val_1) * asteroids%m(i)  ! compute the optimal orbital momentum magnitude from the mass and orbital radius
-            call get_random_number(temp_val_2, temp_val_1 * (1-velocity_noise_bound), temp_val_1 * (1+velocity_noise_bound))  ! get a random velocity magnitude now
+            call get_random_number(temp_val_2, temp_val_2 * (1-velocity_noise_bound), temp_val_2 * (1+velocity_noise_bound))  ! get a random momentum magnitude
             asteroids%px(i) = temp_val_2 * asteroids%y(i) / temp_val_1  ! assign x and y momentum to be in 
             asteroids%py(i) = -1.0 * temp_val_2 * asteroids%x(i) / temp_val_1
+
+            print *, "x=", asteroids%x(i), "y=", asteroids%y(i)
+            print *, "px=", asteroids%px(i), "py=", asteroids%py(i)
+            print *, "r=", asteroids%r(i), "m=", asteroids%m(i)
         end do
 
     end subroutine initialize_particles
