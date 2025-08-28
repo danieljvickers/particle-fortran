@@ -1,5 +1,6 @@
 # Library for all module code
 add_library(simulation_lib
+    m_constants.f90
     m_initialize.f90
 )
 

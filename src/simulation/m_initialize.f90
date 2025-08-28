@@ -25,8 +25,17 @@ module initialize_data
 
 contains
 
+    subroutine get_random_number(val, lower_bound, upper_bound)
+        real(8), intent(in)  :: lower_bound, upper_bound
+        real(8), intent(out) :: val
+
+        call random_number(val)
+        val = lower_bound + (upper_bound - lower_bound) * val
+    end subroutine get_random_number
+
     subroutine initialize_particles()
         integer :: i
+        real(8) :: temp_val_1, temp_val_2  ! placeholders for random number generator
 
         ! Variables used when initilizing the arrays
         num_particles = 1  ! number of particles in the simulation
@@ -43,7 +52,24 @@ contains
         allocate(asteroids%px(num_particles), asteroids%py(num_particles))  ! momentums
         allocate(asteroids%m(num_particles), asteroids%r(num_particles))  ! other
 
-        print *,  "Hello from initialize_data. The radius of the sun is ", solar_radius
+        call random_seed()
+        do i = 1, num_particles
+            ! randomly distribute the positions of the particles in the allowed anulus
+            call get_random_number(temp_val_1, radius_lower**2, radius_upper**2)  ! temp radius
+            temp_val_1 = sqrt(temp_val_1)
+            call get_random_number(temp_val_2, 0, 2*C_PI)  ! temp angle
+            asteroids%x(i) = temp_val_1 * cos(temp_val_2)
+            asteroids%y(i) = temp_val_1 * sin(temp_val_2)
+
+            call get_random_number(asteroids%m(i), mass_lower, mass_upper)  ! evenly distribute the mass
+            asteroids%r(i) = (asteroids%m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)  ! compute the size of the object from the mass and density
+
+            ! generate the momentums
+            temp_val_2 = sqrt(C_G * solar_mass / temp_val_1) * asteroids%m(i)  ! compute the optimal orbital momentum magnitude from the mass and orbital radius
+            call get_random_number(temp_val_2, temp_val_1 * (1-velocity_noise_bound), temp_val_1 * (1+velocity_noise_bound))  ! get a random velocity magnitude now
+            asteroids%px(i) = temp_val_2 * asteroids%y(i) / temp_val_1  ! assign x and y momentum to be in 
+            asteroids%py(i) = -1.0 * temp_val_2 * asteroids%x(i) / temp_val_1
+        end do
 
     end subroutine initialize_particles
 
