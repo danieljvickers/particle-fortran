@@ -2,7 +2,7 @@ module initialize_data
     use constants
     implicit none
 
-    type :: Asteroid_t
+    type :: particle_t
         ! Positions
         real(8), allocatable :: x(:)
         real(8), allocatable :: y(:)
@@ -13,14 +13,14 @@ module initialize_data
 
         ! Other variables
         real(8), allocatable :: m(:)  ! mass
-        real(8), allocatable :: r(:)  ! radius, computed from mass
-    end type Asteroid_t
+        real(8), allocatable :: r(:)  ! radius, computed from mass\
+        logical, allocatable :: merged(:)
+    end type particle_t
 
-    type(Asteroid_t) :: asteroids
+    type(particle_t) :: particles
 
     ! decleare the starting variables
     integer :: num_particles
-    real(8) :: solar_mass, solar_radius
     real(8) :: mass_lower, mass_upper, radius_lower, radius_upper
     real(8) :: velocity_noise_bound
 
@@ -38,18 +38,10 @@ contains
         integer :: i
         real(8) :: orbital_radius, start_angle, orbital_momentum  ! placeholders for random number generator
 
-        ! Variables used when initilizing the arrays
-        num_particles = 1  ! number of particles in the simulation
-        mass_lower = 1e18  ! lower-bound mass of an astroid
-        mass_upper = 1e19  ! upper-bound mass of an asteroid
-        radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
-        radius_upper = 1.5e11  ! upper-bound orbital radius of an asteroid, currently orbital radius of earth
-        velocity_noise_bound = 0.1  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
-
         ! Allocate arrays
-        allocate(asteroids%x(num_particles), asteroids%y(num_particles))  ! positions
-        allocate(asteroids%px(num_particles), asteroids%py(num_particles))  ! momentums
-        allocate(asteroids%m(num_particles), asteroids%r(num_particles))  ! other
+        allocate(particles%x(num_particles), particles%y(num_particles))  ! positions
+        allocate(particles%px(num_particles), particles%py(num_particles))  ! momentums
+        allocate(particles%m(num_particles), particles%r(num_particles), particles%merged(num_particles))  ! other
 
         call random_seed()
         do i = 1, num_particles
@@ -57,22 +49,24 @@ contains
             call get_random_number(orbital_radius, radius_lower**2, radius_upper**2)  ! temp radius
             orbital_radius = sqrt(orbital_radius)
             call get_random_number(start_angle, dble(0.0), 2.0*C_PI)  ! temp angle
-            asteroids%x(i) = orbital_radius * cos(start_angle)
-            asteroids%y(i) = orbital_radius * sin(start_angle)
+            particles%x(i) = orbital_radius * cos(start_angle)
+            particles%y(i) = orbital_radius * sin(start_angle)
 
-            call get_random_number(asteroids%m(i), mass_lower, mass_upper)  ! evenly distribute the mass
-            asteroids%r(i) = (asteroids%m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)  ! compute the size of the object from the mass and density
+            call get_random_number(particles%m(i), mass_lower, mass_upper)  ! evenly distribute the mass
+            particles%r(i) = (particles%m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)  ! compute the size of the object from the mass and density
 
             ! generate the momentums
-            orbital_momentum = sqrt(C_G * C_M_s / orbital_radius) * asteroids%m(i)  ! compute the optimal orbital momentum magnitude from the mass and orbital radius
+            orbital_momentum = sqrt(C_G * C_M_s / orbital_radius) * particles%m(i)  ! compute the optimal orbital momentum magnitude from the mass and orbital radius
             call get_random_number(orbital_momentum, orbital_momentum * (1-velocity_noise_bound), &
                 orbital_momentum * (1+velocity_noise_bound))  ! get a random momentum magnitude
-            asteroids%px(i) = orbital_momentum * asteroids%y(i) / orbital_radius  ! assign x and y momentum to be in 
-            asteroids%py(i) = -1.0 * orbital_momentum * asteroids%x(i) / orbital_radius
+            particles%px(i) = orbital_momentum * particles%y(i) / orbital_radius  ! assign x and y momentum to be in 
+            particles%py(i) = -1.0 * orbital_momentum * particles%x(i) / orbital_radius
 
-            print *, "x=", asteroids%x(i), "y=", asteroids%y(i)
-            print *, "px=", asteroids%px(i), "py=", asteroids%py(i)
-            print *, "r=", asteroids%r(i), "m=", asteroids%m(i)
+            particles%merged(i) = .False.
+
+            ! print *, "x=", particles%x(i), "y=", particles%y(i)
+            ! print *, "px=", particles%px(i), "py=", particles%py(i)
+            ! print *, "r=", particles%r(i), "m=", particles%m(i)
         end do
 
     end subroutine initialize_particles
