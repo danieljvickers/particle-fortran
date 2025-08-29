@@ -36,12 +36,10 @@ contains
 
     subroutine initialize_particles()
         integer :: i
-        real(8) :: temp_val_1, temp_val_2  ! placeholders for random number generator
+        real(8) :: orbital_radius, start_angle, orbital_momentum  ! placeholders for random number generator
 
         ! Variables used when initilizing the arrays
         num_particles = 1  ! number of particles in the simulation
-        solar_mass = 1.9891e30  ! mass of the central star, which is the mass of the sun for now
-        solar_radius = 696e6  ! radius of the sun, in meters
         mass_lower = 1e18  ! lower-bound mass of an astroid
         mass_upper = 1e19  ! upper-bound mass of an asteroid
         radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
@@ -56,20 +54,21 @@ contains
         call random_seed()
         do i = 1, num_particles
             ! randomly distribute the positions of the particles in the allowed anulus
-            call get_random_number(temp_val_1, radius_lower**2, radius_upper**2)  ! temp radius
-            temp_val_1 = sqrt(temp_val_1)
-            call get_random_number(temp_val_2, dble(0.0), 2.0*C_PI)  ! temp angle
-            asteroids%x(i) = temp_val_1 * cos(temp_val_2)
-            asteroids%y(i) = temp_val_1 * sin(temp_val_2)
+            call get_random_number(orbital_radius, radius_lower**2, radius_upper**2)  ! temp radius
+            orbital_radius = sqrt(orbital_radius)
+            call get_random_number(start_angle, dble(0.0), 2.0*C_PI)  ! temp angle
+            asteroids%x(i) = orbital_radius * cos(start_angle)
+            asteroids%y(i) = orbital_radius * sin(start_angle)
 
             call get_random_number(asteroids%m(i), mass_lower, mass_upper)  ! evenly distribute the mass
             asteroids%r(i) = (asteroids%m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)  ! compute the size of the object from the mass and density
 
             ! generate the momentums
-            temp_val_2 = sqrt(C_G * solar_mass / temp_val_1) * asteroids%m(i)  ! compute the optimal orbital momentum magnitude from the mass and orbital radius
-            call get_random_number(temp_val_2, temp_val_2 * (1-velocity_noise_bound), temp_val_2 * (1+velocity_noise_bound))  ! get a random momentum magnitude
-            asteroids%px(i) = temp_val_2 * asteroids%y(i) / temp_val_1  ! assign x and y momentum to be in 
-            asteroids%py(i) = -1.0 * temp_val_2 * asteroids%x(i) / temp_val_1
+            orbital_momentum = sqrt(C_G * C_M_s / orbital_radius) * asteroids%m(i)  ! compute the optimal orbital momentum magnitude from the mass and orbital radius
+            call get_random_number(orbital_momentum, orbital_momentum * (1-velocity_noise_bound), &
+                orbital_momentum * (1+velocity_noise_bound))  ! get a random momentum magnitude
+            asteroids%px(i) = orbital_momentum * asteroids%y(i) / orbital_radius  ! assign x and y momentum to be in 
+            asteroids%py(i) = -1.0 * orbital_momentum * asteroids%x(i) / orbital_radius
 
             print *, "x=", asteroids%x(i), "y=", asteroids%y(i)
             print *, "px=", asteroids%px(i), "py=", asteroids%py(i)
