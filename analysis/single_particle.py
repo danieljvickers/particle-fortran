@@ -11,10 +11,15 @@ colors = [
     'green',
     'cyan',
     'purple',
-    'yellow',
+    'darkgoldenrod',
     'pink',
-    'black'
+    'black',
+    'darkgreen',
+    'darkslatgrey',
+    'saddlebrown'
 ]
+
+AU_in_meters = 149597870700
 
 
 def main():
@@ -36,14 +41,18 @@ def main():
             particles.append({'x':[], 'y':[]})
 
         for i in range(len(x_vals)):
-            particles[i]['x'].append(x_vals[i])
-            particles[i]['y'].append(y_vals[i])
+            particles[i]['x'].append(x_vals[i] / AU_in_meters)
+            particles[i]['y'].append(y_vals[i] / AU_in_meters)
     
     plt.figure(figsize=(8, 8))
     for particle_index in range(plot_particles):
         plt.plot(particles[particle_index]['x'], particles[particle_index]['y'], color=colors[particle_index])
         plt.scatter(particles[particle_index]['x'][-1], particles[particle_index]['y'][-1], c=colors[particle_index])
     plt.scatter((0), (0), c='orange', s=200)
+
+    plt.xlabel('x (AU)', fontsize=18)
+    plt.ylabel('y (AU)', fontsize=18)
+
     plt.show()
 
 

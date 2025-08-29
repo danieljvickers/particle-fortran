@@ -15,13 +15,14 @@ contains
     end subroutine get_distance
 
 
-    subroutine handle_collisions(particles, num_particles)
+    subroutine handle_collisions(particles, num_particles, max_allowed_distance)
 
         integer :: i, j
         real(8) :: distance, x_com, y_com, combined_mass
 
         type(particle_t), intent(inout) :: particles
         integer, intent(in) :: num_particles
+        real(8), intent(in) :: max_allowed_distance
 
         do i = 1, num_particles - 1
             if (particles%merged(i)) then
@@ -30,7 +31,7 @@ contains
 
             ! check for solar merges
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
-            if (distance .le. C_R_s) then
+            if ((distance .le. C_R_s) .or. (distance .ge. max_allowed_distance)) then
                 ! TODO :: for now we assume the particle is so small that it has no mass comapred to sun
                 particles%merged(i) = .true.
                 cycle
