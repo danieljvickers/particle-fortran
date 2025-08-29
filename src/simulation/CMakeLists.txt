@@ -3,6 +3,7 @@ add_library(simulation_lib
     m_constants.f90
     m_initialize.f90
     m_time_step.f90
+    m_save.f90
 )
 
 set_target_properties(simulation_lib PROPERTIES

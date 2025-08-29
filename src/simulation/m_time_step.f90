@@ -81,18 +81,12 @@ contains
             particles%ay(i) = dble(0.0)
         end do
 
-        ! due to computational issues with n-body problems
         do i = 1, num_particles
 
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
-            if (distance .le. C_R_s) then
-                ! TODO :: for now we assume the particle is so small that it has no mass comapred to sun
-                particles%merged(i) = .true.
-                cycle
-            end if
-
-            particles%ax(i) = particles%ax(i) - C_G * C_M_s * particles%x(i) / (distance**3)
-            particles%ax(i) = particles%ay(i) - C_G * C_M_s * particles%y(i) / (distance**3)
+            particles%ax(i) = particles%ax(i) - (C_G * C_M_s * particles%x(i) / (distance**3))
+            particles%ay(i) = particles%ay(i) - (C_G * C_M_s * particles%y(i) / (distance**3))
+            cycle
 
             do j = i+1, num_particles
                 if (particles%merged(j)) then
@@ -100,7 +94,7 @@ contains
                 end if
 
                 acceleration_x = -C_G * particles%m(i) * particles%m(j) * (particles%x(i) - particles%x(j)) / (distance**3)
-                acceleration_y = -C_G * C_M_s * (particles%y(i) - particles%y(j)) / (distance**3)
+                acceleration_y = -C_G * particles%m(i) * particles%m(j) * (particles%y(i) - particles%y(j)) / (distance**3)
 
                 particles%ax(i) = particles%ax(i) + acceleration_x / particles%m(i)
                 particles%ax(j) = particles%ax(j) - acceleration_x / particles%m(j)
@@ -113,8 +107,8 @@ contains
         ! use those accelerations to compute the updated positions and momentums using eulers method
         do i = 1, num_particles
 
-            velocity_x = particles%px(i) / particles%m(i) + dt * particles%ax(i)
-            velocity_y = particles%py(i) / particles%m(i) + dt * particles%ay(i)
+            velocity_x = (particles%px(i) / particles%m(i)) + dt * particles%ax(i)
+            velocity_y = (particles%py(i) / particles%m(i)) + dt * particles%ay(i)
 
             particles%x(i) = particles%x(i) + dt * velocity_x
             particles%y(i) = particles%y(i) + dt * velocity_y

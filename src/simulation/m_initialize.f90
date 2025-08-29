@@ -64,14 +64,11 @@ contains
             orbital_momentum = sqrt(C_G * C_M_s / orbital_radius) * particles%m(i)  ! compute the optimal orbital momentum magnitude from the mass and orbital radius
             call get_random_number(orbital_momentum, orbital_momentum * (1-velocity_noise_bound), &
                 orbital_momentum * (1+velocity_noise_bound))  ! get a random momentum magnitude
-            particles%px(i) = orbital_momentum * particles%y(i) / orbital_radius  ! assign x and y momentum to be in 
-            particles%py(i) = -1.0 * orbital_momentum * particles%x(i) / orbital_radius
+            particles%px(i) =  orbital_momentum * particles%y(i) / orbital_radius  ! assign x and y momentum to be in 
+            particles%py(i) = -orbital_momentum * particles%x(i) / orbital_radius
 
             particles%merged(i) = .False.
 
-            ! print *, "x=", particles%x(i), "y=", particles%y(i)
-            ! print *, "px=", particles%px(i), "py=", particles%py(i)
-            ! print *, "r=", particles%r(i), "m=", particles%m(i)
         end do
 
     end subroutine initialize_particles

@@ -29,6 +29,7 @@ program main
     use constants
     use initialize_data
     use time_step
+    use save_data
     implicit none
 
 
@@ -37,7 +38,7 @@ program main
     integer :: num_time_steps, i, save_frequency
     
     ! Variables used when initilizing the arrays
-    num_particles = 1  ! number of particles in the simulation
+    num_particles = 8  ! number of particles in the simulation
     mass_lower = 1e18  ! lower-bound mass of an astroid
     mass_upper = 1e19  ! upper-bound mass of an asteroid
     radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
@@ -48,13 +49,10 @@ program main
     escape_radius = 40 * C_R_s
     num_time_steps = 500
     dt = 60*60*6
+    save_frequency = 10
 
     ! initialize particles
     call initialize_particles()
-
-    print *, "x=", particles%x(1), "y=", particles%y(1)
-    print *, "px=", particles%px(1), "py=", particles%py(1)
-    print *, "r=", particles%r(1), "m=", particles%m(1)
 
     ! take time steps
     call handle_collisions(particles, num_particles)   ! needs to be called once to handle all of the particles that may be overlapping
@@ -63,13 +61,8 @@ program main
         call handle_collisions(particles, num_particles)
 
         if (modulo(i, save_frequency) .eq. 0) then
-            ! call the save function
-            cycle
+            call save_all(particles, num_particles, "data", i)
         end if
     end do
-
-    print *, "x=", particles%x(1), "y=", particles%y(1)
-    print *, "px=", particles%px(1), "py=", particles%py(1)
-    print *, "r=", particles%r(1), "m=", particles%m(1)
 
 end program main
