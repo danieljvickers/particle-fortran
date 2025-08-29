@@ -5,6 +5,16 @@ module time_step
 
 contains
 
+    subroutine get_distance(distance, x1, y1, x2, y2)
+
+        real(8), intent(in) :: x1, y1, x2, y2
+        real(8), intent(out) :: distance
+
+        distance = sqrt((x1 - x2)**2 + (y1 - y2)**2)
+
+    end subroutine get_distance
+
+
     subroutine handle_collisions(particles, num_particles)
 
         integer :: i, j
@@ -19,7 +29,7 @@ contains
             end if
 
             ! check for solar merges
-            distance = sqrt(particles%x(i)**2 + particles%y(i)**2)
+            call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
             if (distance .le. C_R_s) then
                 ! TODO :: for now we assume the particle is so small that it has no mass comapred to sun
                 particles%merged(i) = .true.
@@ -32,7 +42,7 @@ contains
                     cycle  ! skips if the second particles has collided
                 end if
 
-                distance = sqrt((particles%x(i) - particles%x(j))**2 + (particles%y(i) - particles%y(j))**2)
+                call get_distance(distance, particles%x(i), particles%y(i), particles%x(j), particles%y(j))
                 if (distance .le. particles%r(i) + particles%r(j)) then  ! true if they should collide perfectly inelasically
                     ! add the momentum
                     particles%px(i) = particles%px(i) + particles%px(j)
@@ -55,8 +65,63 @@ contains
 
     end subroutine handle_collisions
 
-    
-    subroutine take_time_step(particles, num_particles)
+
+    subroutine take_time_step(particles, num_particles, dt)
+
+        integer :: i, j
+        real(8) :: acceleration_x, acceleration_y, velocity_x, velocity_y, distance
+
+        type(particle_t), intent(inout) :: particles
+        integer, intent(in) :: num_particles
+        real(8), intent(in) :: dt
+
+        ! reset the memory on acceleration
+        do i = 1, num_particles
+            particles%ax(i) = dble(0.0)
+            particles%ay(i) = dble(0.0)
+        end do
+
+        ! due to computational issues with n-body problems
+        do i = 1, num_particles
+
+            call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
+            if (distance .le. C_R_s) then
+                ! TODO :: for now we assume the particle is so small that it has no mass comapred to sun
+                particles%merged(i) = .true.
+                cycle
+            end if
+
+            particles%ax(i) = particles%ax(i) - C_G * C_M_s * particles%x(i) / (distance**3)
+            particles%ax(i) = particles%ay(i) - C_G * C_M_s * particles%y(i) / (distance**3)
+
+            do j = i+1, num_particles
+                if (particles%merged(j)) then
+                    cycle  ! skips if the second particles has collided
+                end if
+
+                acceleration_x = -C_G * particles%m(i) * particles%m(j) * (particles%x(i) - particles%x(j)) / (distance**3)
+                acceleration_y = -C_G * C_M_s * (particles%y(i) - particles%y(j)) / (distance**3)
+
+                particles%ax(i) = particles%ax(i) + acceleration_x / particles%m(i)
+                particles%ax(j) = particles%ax(j) - acceleration_x / particles%m(j)
+                particles%ay(i) = particles%ay(i) + acceleration_y / particles%m(i)
+                particles%ay(j) = particles%ay(j) - acceleration_y / particles%m(j)
+            end do
+
+        end do
+
+        ! use those accelerations to compute the updated positions and momentums using eulers method
+        do i = 1, num_particles
+
+            velocity_x = particles%px(i) / particles%m(i) + dt * particles%ax(i)
+            velocity_y = particles%py(i) / particles%m(i) + dt * particles%ay(i)
+
+            particles%x(i) = particles%x(i) + dt * velocity_x
+            particles%y(i) = particles%y(i) + dt * velocity_y
+            particles%px(i) = particles%m(i) * velocity_x
+            particles%py(i) = particles%m(i) * velocity_y
+
+        end do
 
     end subroutine take_time_step
 

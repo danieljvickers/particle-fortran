@@ -46,16 +46,20 @@ program main
 
     ! time step variables
     escape_radius = 40 * C_R_s
-    num_time_steps = 1000
+    num_time_steps = 500
     dt = 60*60*6
 
     ! initialize particles
     call initialize_particles()
 
+    print *, "x=", particles%x(1), "y=", particles%y(1)
+    print *, "px=", particles%px(1), "py=", particles%py(1)
+    print *, "r=", particles%r(1), "m=", particles%m(1)
+
     ! take time steps
     call handle_collisions(particles, num_particles)   ! needs to be called once to handle all of the particles that may be overlapping
     do i = 1, num_time_steps
-        call take_time_step(particles, num_particles)
+        call take_time_step(particles, num_particles, dt)
         call handle_collisions(particles, num_particles)
 
         if (modulo(i, save_frequency) .eq. 0) then
@@ -63,5 +67,9 @@ program main
             cycle
         end if
     end do
+
+    print *, "x=", particles%x(1), "y=", particles%y(1)
+    print *, "px=", particles%px(1), "py=", particles%py(1)
+    print *, "r=", particles%r(1), "m=", particles%m(1)
 
 end program main

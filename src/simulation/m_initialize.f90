@@ -11,6 +11,10 @@ module initialize_data
         real(8), allocatable :: px(:)
         real(8), allocatable :: py(:)
 
+        ! Accelerations
+        real(8), allocatable :: ax(:)
+        real(8), allocatable :: ay(:)
+
         ! Other variables
         real(8), allocatable :: m(:)  ! mass
         real(8), allocatable :: r(:)  ! radius, computed from mass\
@@ -41,6 +45,7 @@ contains
         ! Allocate arrays
         allocate(particles%x(num_particles), particles%y(num_particles))  ! positions
         allocate(particles%px(num_particles), particles%py(num_particles))  ! momentums
+        allocate(particles%ax(num_particles), particles%ay(num_particles))  ! accelerations
         allocate(particles%m(num_particles), particles%r(num_particles), particles%merged(num_particles))  ! other
 
         call random_seed()
