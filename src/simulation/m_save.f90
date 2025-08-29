@@ -25,7 +25,9 @@ subroutine save_all(particles, num_particles, directory, index)
 
     ! Write interleaved doubles: x1,y1,x2,y2,...
     do i = 1, num_particles
-        write(unit) particles%x(i), particles%y(i), particles%px(i), particles%py(i), particles%r(i)
+        if (particles%merged(i)) then
+            write(unit) particles%x(i), particles%y(i), particles%px(i), particles%py(i), particles%r(i)
+        end if
     end do
 
     ! Close file

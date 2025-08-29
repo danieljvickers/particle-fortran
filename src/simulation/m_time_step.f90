@@ -86,7 +86,6 @@ contains
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
             particles%ax(i) = particles%ax(i) - (C_G * C_M_s * particles%x(i) / (distance**3))
             particles%ay(i) = particles%ay(i) - (C_G * C_M_s * particles%y(i) / (distance**3))
-            cycle
 
             do j = i+1, num_particles
                 if (particles%merged(j)) then
