@@ -27,7 +27,7 @@ program main
     real(8) :: elapsed, total_elapsed
     
     ! Variables used when initilizing the arrays
-    num_particles = 65536  ! number of particles in the simulation
+    num_particles = 32768  ! number of particles in the simulation
     mass_lower = 1e18  ! lower-bound mass of an astroid
     mass_upper = 1e19  ! upper-bound mass of an asteroid
     radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
