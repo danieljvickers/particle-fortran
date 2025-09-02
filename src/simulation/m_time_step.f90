@@ -28,9 +28,7 @@ contains
 
         !$omp parallel do private(i, j, distance)
         do i = 1, num_particles
-            if (particles%merged(i)) then
-                cycle  ! skips if collided
-            end if
+            if (particles%merged(i)) cycle
 
             ! check for solar merges
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
@@ -61,11 +59,11 @@ contains
                     particles%py(i) = particles%py(i) + particles%py(j)
 
                     ! compute the center of mass and move particles
+                    combined_mass = particles%m(i) + particles%m(j)
                     particles%x(i) = (particles%x(i) * particles%m(i) + particles%x(j) * particles%m(j)) / combined_mass
                     particles%y(i) = (particles%y(i) * particles%m(i) + particles%y(j) * particles%m(j)) / combined_mass
                     
                     ! update mass and radius
-                    combined_mass = particles%m(i) + particles%m(j)
                     particles%m(i) = combined_mass
                     particles%r(i) = (particles%m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)
 

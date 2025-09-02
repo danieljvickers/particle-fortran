@@ -27,19 +27,19 @@ program main
     real(8) :: elapsed, total_elapsed
     
     ! Variables used when initilizing the arrays
-    num_particles = 32768  ! number of particles in the simulation
-    mass_lower = 1e18  ! lower-bound mass of an astroid
-    mass_upper = 1e19  ! upper-bound mass of an asteroid
+    num_particles = 256  ! number of particles in the simulation
+    mass_lower = 1e24  ! lower-bound mass of an astroid
+    mass_upper = 1e25  ! upper-bound mass of an asteroid
     radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
     radius_upper = 1.5e11  ! upper-bound orbital radius of an asteroid, currently orbital radius of earth
     velocity_noise_bound = 0.1  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
 
     ! time step variables
     escape_radius = 20 * radius_upper
-    num_time_steps = 20
+    num_time_steps = 600
     dt = 60*60*6
-    save_frequency = 500
-    time_frequency = 1
+    save_frequency = 10
+    time_frequency = 100
 
     ! initialize particles
     call initialize_particles()
@@ -50,6 +50,7 @@ program main
 
     call system_clock(total_count_start)
     call handle_collisions(particles, num_particles, escape_radius)   ! needs to be called once to handle all of the particles that may be overlapping
+    call save_all(particles, num_particles, "data", 0)
     do i = 1, num_time_steps
         call system_clock(count_start)
 
