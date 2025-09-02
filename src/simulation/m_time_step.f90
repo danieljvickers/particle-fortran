@@ -17,7 +17,7 @@ contains
     end subroutine get_distance
 
 
-    subroutine handle_collisions(particles, num_particles, max_allowed_distance)
+    subroutine handle_collisions(particles, num_particles, max_allowed_distance, merged_in_sun, flew_to_infinity, merged_together)
 
         integer :: i, j
         real(8) :: distance, x_com, y_com, combined_mass, merge_distance
@@ -25,6 +25,7 @@ contains
         type(particle_t), intent(inout) :: particles
         integer, intent(in) :: num_particles
         real(8), intent(in) :: max_allowed_distance
+        integer, intent(inout) :: merged_in_sun, flew_to_infinity, merged_together
 
         !$omp parallel do private(i, j, distance)
         do i = 1, num_particles
@@ -32,11 +33,13 @@ contains
 
             ! check for solar merges
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
-            if ((distance .le. C_R_s) .or. (distance .ge. max_allowed_distance)) then
+            if ((distance .le. C_R_s)) then
                 ! TODO :: for now we assume the particle is so small that it has no mass comapred to sun
-                print *, "Merging into sun ", i
+                merged_in_sun = merged_in_sun + 1
                 particles%merged(i) = .true.
-                cycle
+            else if (distance .ge. max_allowed_distance) then
+                flew_to_infinity = flew_to_infinity + 1
+                particles%merged(i) = .true.
             end if
         end do
         !$omp end parallel do
@@ -54,6 +57,7 @@ contains
                 if ( distance .le. particles%r(i) + particles%r(j)) then  ! true if they should collide perfectly inelasically
 
                     !$omp critical
+                    merged_together = merged_together + 1
                     ! add the momentum
                     particles%px(i) = particles%px(i) + particles%px(j)
                     particles%py(i) = particles%py(i) + particles%py(j)
