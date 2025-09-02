@@ -1,4 +1,6 @@
 module time_step
+    use omp_lib
+
     use constants
     use initialize_data
     implicit none
@@ -18,13 +20,13 @@ contains
     subroutine handle_collisions(particles, num_particles, max_allowed_distance)
 
         integer :: i, j
-        real(8) :: distance, x_com, y_com, combined_mass
+        real(8) :: distance, x_com, y_com, combined_mass, merge_distance
 
         type(particle_t), intent(inout) :: particles
         integer, intent(in) :: num_particles
         real(8), intent(in) :: max_allowed_distance
 
-        do i = 1, num_particles - 1
+        do i = 1, num_particles
             if (particles%merged(i)) then
                 cycle  ! skips if the first particles has collided
             end if
@@ -33,6 +35,7 @@ contains
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
             if ((distance .le. C_R_s) .or. (distance .ge. max_allowed_distance)) then
                 ! TODO :: for now we assume the particle is so small that it has no mass comapred to sun
+                print *, "Merging into sun ", i
                 particles%merged(i) = .true.
                 cycle
             end if
@@ -44,7 +47,7 @@ contains
                 end if
 
                 call get_distance(distance, particles%x(i), particles%y(i), particles%x(j), particles%y(j))
-                if (distance .le. particles%r(i) + particles%r(j)) then  ! true if they should collide perfectly inelasically
+                if ( distance .le. particles%r(i) + particles%r(j)) then  ! true if they should collide perfectly inelasically
                     ! add the momentum
                     particles%px(i) = particles%px(i) + particles%px(j)
                     particles%py(i) = particles%py(i) + particles%py(j)
@@ -82,6 +85,7 @@ contains
             particles%ay(i) = dble(0.0)
         end do
 
+        !$omp parallel do default(shared) private(i, j, distance, acceleration_x, acceleration_y)
         do i = 1, num_particles
 
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
@@ -93,18 +97,26 @@ contains
                     cycle  ! skips if the second particles has collided
                 end if
 
+                call get_distance(distance, particles%x(i), particles%y(i), particles%x(j), particles%y(j))
                 acceleration_x = -C_G * particles%m(i) * particles%m(j) * (particles%x(i) - particles%x(j)) / (distance**3)
                 acceleration_y = -C_G * particles%m(i) * particles%m(j) * (particles%y(i) - particles%y(j)) / (distance**3)
 
+                ! We update each acceleration, using attomics to prevent race conditions in parallel
+                !$omp atomic
                 particles%ax(i) = particles%ax(i) + acceleration_x / particles%m(i)
+                !$omp atomic
                 particles%ax(j) = particles%ax(j) - acceleration_x / particles%m(j)
+                !$omp atomic
                 particles%ay(i) = particles%ay(i) + acceleration_y / particles%m(i)
+                !$omp atomic
                 particles%ay(j) = particles%ay(j) - acceleration_y / particles%m(j)
             end do
 
         end do
+        !$omp end parallel do
 
         ! use those accelerations to compute the updated positions and momentums using eulers method
+        !$omp parallel do default(shared) private(i, velocity_x, velocity_y)
         do i = 1, num_particles
 
             velocity_x = (particles%px(i) / particles%m(i)) + dt * particles%ax(i)
@@ -116,6 +128,7 @@ contains
             particles%py(i) = particles%m(i) * velocity_y
 
         end do
+        !$omp end parallel do
 
     end subroutine take_time_step
 

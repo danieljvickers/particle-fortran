@@ -26,6 +26,8 @@
 ! end program main
 
 program main
+    use omp_lib
+
     use constants
     use initialize_data
     use time_step
@@ -37,11 +39,11 @@ program main
     real(8) :: escape_radius, dt
     integer :: num_time_steps, i, save_frequency, time_frequency
 
-    integer :: count_start, count_end, count_rate, total_count_start, total_count_end
+    integer :: count_start, count_end, count_rate, total_count_start, total_count_end, counter
     real(8) :: elapsed, total_elapsed
     
     ! Variables used when initilizing the arrays
-    num_particles = 262144  ! number of particles in the simulation
+    num_particles = 32768  ! number of particles in the simulation
     mass_lower = 1e18  ! lower-bound mass of an astroid
     mass_upper = 1e19  ! upper-bound mass of an asteroid
     radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
@@ -49,7 +51,7 @@ program main
     velocity_noise_bound = 0.1  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
 
     ! time step variables
-    escape_radius = 40 * C_R_s
+    escape_radius = 40 * radius_upper
     num_time_steps = 20
     dt = 60*60*6
     save_frequency = 500
@@ -85,5 +87,15 @@ program main
 
     total_elapsed = real(total_count_end - total_count_start, 8) / real(count_rate, 8)
     print *, "Average time per time step: ", total_elapsed / num_time_steps
+
+    ! Count Metrics
+    counter = 0
+    do i = 1, num_particles
+        if (particles%merged(i)) then
+            counter = counter + 1
+        end if
+    end do
+    print *, "Particles merged:    ", counter
+    print *, "Particles remaining: ", num_particles - counter
 
 end program main
