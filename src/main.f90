@@ -1,29 +1,13 @@
-! program main
-!     use mpi
+! program hello_omp
 !     use omp_lib
-!     implicit none
-
-!     integer :: ierr, rank, size
-!     integer :: omp_rank, omp_size
-
-!     ! Initialize MPI
-!     call MPI_Init(ierr)
-!     call MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
-!     call MPI_Comm_size(MPI_COMM_WORLD, size, ierr)
-
-!     ! OpenMP parallel region
-!     !$omp parallel private(omp_rank, omp_size)
-!         omp_rank = omp_get_thread_num()
-!         omp_size = omp_get_num_threads()
-
-!         print *, 'Hello from MPI rank', rank, 'of', size, &
-!                  'and OpenMP thread', omp_rank, 'of', omp_size
+!     integer :: tid, nthreads
+!     !$omp parallel private(tid)
+!         tid = omp_get_thread_num()
+!         nthreads = omp_get_num_threads()
+!         print *, 'Thread ', tid, ' of ', nthreads
 !     !$omp end parallel
+! end program hello_omp
 
-!     ! Finalize MPI
-!     call MPI_Finalize(ierr)
-
-! end program main
 
 program main
     use omp_lib
@@ -51,8 +35,8 @@ program main
     velocity_noise_bound = 0.1  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
 
     ! time step variables
-    escape_radius = 40 * radius_upper
-    num_time_steps = 20
+    escape_radius = 20 * radius_upper
+    num_time_steps = 1
     dt = 60*60*6
     save_frequency = 500
     time_frequency = 1
@@ -70,7 +54,7 @@ program main
         call system_clock(count_start)
 
         call take_time_step(particles, num_particles, dt)
-        call handle_collisions(particles, num_particles, escape_radius)
+        ! call handle_collisions(particles, num_particles, escape_radius)
 
         call system_clock(count_end)
         elapsed = elapsed + real(count_end - count_start, 8) / real(count_rate, 8)

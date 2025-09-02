@@ -6,6 +6,8 @@ add_library(simulation_lib
     m_save.f90
 )
 
+target_link_libraries(simulation_lib PUBLIC OpenMP::OpenMP_Fortran)
+
 set_target_properties(simulation_lib PROPERTIES
     Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod
 )

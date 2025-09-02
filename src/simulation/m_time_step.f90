@@ -72,48 +72,61 @@ contains
 
     subroutine take_time_step(particles, num_particles, dt)
 
-        integer :: i, j
+        integer :: i, j, tid, n_threads
+        real(8), allocatable :: ax_local(:,:), ay_local(:,:)
         real(8) :: acceleration_x, acceleration_y, velocity_x, velocity_y, distance
 
         type(particle_t), intent(inout) :: particles
         integer, intent(in) :: num_particles
         real(8), intent(in) :: dt
 
-        ! reset the memory on acceleration
-        do i = 1, num_particles
-            particles%ax(i) = dble(0.0)
-            particles%ay(i) = dble(0.0)
-        end do
+        !$omp parallel
+        n_threads = omp_get_num_threads()
+        !$omp end parallel
 
-        !$omp parallel do default(shared) private(i, j, distance, acceleration_x, acceleration_y)
+        ! reset the memory on acceleration
+        allocate(ax_local(num_particles, n_threads))
+        allocate(ay_local(num_particles, n_threads))
+        ax_local = 0.0d0
+        ay_local = 0.0d0
+
+        !$omp parallel default(shared) private(i,j,distance,acceleration_x,acceleration_y,tid)
+        tid = omp_get_thread_num()
+
+        !$omp do schedule(dynamic)
         do i = 1, num_particles
 
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
-            particles%ax(i) = particles%ax(i) - (C_G * C_M_s * particles%x(i) / (distance**3))
-            particles%ay(i) = particles%ay(i) - (C_G * C_M_s * particles%y(i) / (distance**3))
+            ax_local(i, tid+1) = ax_local(i, tid+1) - (C_G * C_M_s * particles%x(i) / (distance**3))
+            ay_local(i, tid+1) = ay_local(i, tid+1) - (C_G * C_M_s * particles%y(i) / (distance**3))
 
             do j = i+1, num_particles
-                if (particles%merged(j)) then
-                    cycle  ! skips if the second particles has collided
-                end if
+                if (particles%merged(j)) cycle
 
                 call get_distance(distance, particles%x(i), particles%y(i), particles%x(j), particles%y(j))
                 acceleration_x = -C_G * particles%m(i) * particles%m(j) * (particles%x(i) - particles%x(j)) / (distance**3)
                 acceleration_y = -C_G * particles%m(i) * particles%m(j) * (particles%y(i) - particles%y(j)) / (distance**3)
 
                 ! We update each acceleration, using attomics to prevent race conditions in parallel
-                !$omp atomic
-                particles%ax(i) = particles%ax(i) + acceleration_x / particles%m(i)
-                !$omp atomic
-                particles%ax(j) = particles%ax(j) - acceleration_x / particles%m(j)
-                !$omp atomic
-                particles%ay(i) = particles%ay(i) + acceleration_y / particles%m(i)
-                !$omp atomic
-                particles%ay(j) = particles%ay(j) - acceleration_y / particles%m(j)
-            end do
+                ax_local(i, tid+1) = ax_local(i, tid+1) + acceleration_x / particles%m(i)
+                ax_local(j, tid+1) = ax_local(j, tid+1) - acceleration_x / particles%m(j)
+                ay_local(i, tid+1) = ay_local(i, tid+1) + acceleration_y / particles%m(i)
+                ay_local(j, tid+1) = ay_local(j, tid+1) - acceleration_y / particles%m(j)
 
+            end do
         end do
-        !$omp end parallel do
+        !$omp end do
+        !$omp end parallel
+
+        ! Reduce private arrays into the shared particles%ax, %ay
+        particles%ax = 0.0d0
+        particles%ay = 0.0d0
+        do tid = 1, n_threads
+            particles%ax = particles%ax + ax_local(:, tid)
+            particles%ay = particles%ay + ay_local(:, tid)
+        end do
+
+        deallocate(ax_local, ay_local)
 
         ! use those accelerations to compute the updated positions and momentums using eulers method
         !$omp parallel do default(shared) private(i, velocity_x, velocity_y)
