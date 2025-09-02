@@ -26,9 +26,10 @@ contains
         integer, intent(in) :: num_particles
         real(8), intent(in) :: max_allowed_distance
 
+        !$omp parallel do private(i, j, distance)
         do i = 1, num_particles
             if (particles%merged(i)) then
-                cycle  ! skips if the first particles has collided
+                cycle  ! skips if collided
             end if
 
             ! check for solar merges
@@ -39,8 +40,13 @@ contains
                 particles%merged(i) = .true.
                 cycle
             end if
+        end do
+        !$omp end parallel do
 
-            ! check for particle-to-particle merging
+        ! check for particle-to-particle merging
+        ! TODO :: Consider swaping to an iterative parallel search and then serial merge.
+        !$omp parallel do private(i, j, distance, combined_mass)
+        do i = 1, num_particles
             do j = i+1, num_particles
                 if (particles%merged(j)) then
                     cycle  ! skips if the second particles has collided
@@ -48,21 +54,24 @@ contains
 
                 call get_distance(distance, particles%x(i), particles%y(i), particles%x(j), particles%y(j))
                 if ( distance .le. particles%r(i) + particles%r(j)) then  ! true if they should collide perfectly inelasically
+
+                    !$omp critical
                     ! add the momentum
                     particles%px(i) = particles%px(i) + particles%px(j)
                     particles%py(i) = particles%py(i) + particles%py(j)
 
                     ! compute the center of mass and move particles
-                    combined_mass = particles%m(i) + particles%m(j)
                     particles%x(i) = (particles%x(i) * particles%m(i) + particles%x(j) * particles%m(j)) / combined_mass
                     particles%y(i) = (particles%y(i) * particles%m(i) + particles%y(j) * particles%m(j)) / combined_mass
                     
                     ! update mass and radius
+                    combined_mass = particles%m(i) + particles%m(j)
                     particles%m(i) = combined_mass
                     particles%r(i) = (particles%m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)
 
                     ! count the second particle as merged
                     particles%merged(j) = .True.
+                    !$omp end critical
                 end if
             end do
         end do

@@ -27,7 +27,7 @@ program main
     real(8) :: elapsed, total_elapsed
     
     ! Variables used when initilizing the arrays
-    num_particles = 32768  ! number of particles in the simulation
+    num_particles = 65536  ! number of particles in the simulation
     mass_lower = 1e18  ! lower-bound mass of an astroid
     mass_upper = 1e19  ! upper-bound mass of an asteroid
     radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
@@ -36,7 +36,7 @@ program main
 
     ! time step variables
     escape_radius = 20 * radius_upper
-    num_time_steps = 1
+    num_time_steps = 20
     dt = 60*60*6
     save_frequency = 500
     time_frequency = 1
@@ -54,7 +54,7 @@ program main
         call system_clock(count_start)
 
         call take_time_step(particles, num_particles, dt)
-        ! call handle_collisions(particles, num_particles, escape_radius)
+        call handle_collisions(particles, num_particles, escape_radius)
 
         call system_clock(count_end)
         elapsed = elapsed + real(count_end - count_start, 8) / real(count_rate, 8)
