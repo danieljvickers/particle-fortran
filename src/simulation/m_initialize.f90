@@ -2,7 +2,7 @@ module initialize_data
     use constants
     implicit none
 
-    type :: particle_t
+    type :: particle_type
         ! Positions
         real(8), allocatable :: x(:)
         real(8), allocatable :: y(:)
@@ -17,11 +17,11 @@ module initialize_data
 
         ! Other variables
         real(8), allocatable :: m(:)  ! mass
-        real(8), allocatable :: r(:)  ! radius, computed from mass\
+        real(8), allocatable :: r(:)  ! radius, computed from mass
         logical, allocatable :: merged(:)
-    end type particle_t
+    end type particle_type
 
-    type(particle_t) :: particles
+    type(particle_type) :: particles
 
     ! decleare the starting variables
     integer :: num_particles
@@ -46,7 +46,8 @@ contains
         allocate(particles%x(num_particles), particles%y(num_particles))  ! positions
         allocate(particles%px(num_particles), particles%py(num_particles))  ! momentums
         allocate(particles%ax(num_particles), particles%ay(num_particles))  ! accelerations
-        allocate(particles%m(num_particles), particles%r(num_particles), particles%merged(num_particles))  ! other
+        allocate(particles%m(num_particles), particles%r(num_particles))  ! other
+        allocate(particles%merged(num_particles))  ! other
 
         call random_seed()
         do i = 1, num_particles

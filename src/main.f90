@@ -30,16 +30,16 @@ program main
     
     ! Variables used when initilizing the arrays
     num_particles = 8192  ! number of particles in the simulation
-    mass_lower = 1e24  ! lower-bound mass of an astroid
-    mass_upper = 1e25  ! upper-bound mass of an asteroid
+    mass_lower = 1e26  ! lower-bound mass of an astroid
+    mass_upper = 1e27  ! upper-bound mass of an asteroid
     radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
     radius_upper = 1.5e11  ! upper-bound orbital radius of an asteroid, currently orbital radius of earth
-    velocity_noise_bound = 0.1  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
+    velocity_noise_bound = 0.001  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
 
     ! time step variables
     escape_radius = 20 * radius_upper
-    num_time_steps = 100000
-    dt = 60*60*6
+    num_time_steps = 10
+    dt = 60*60*2
     save_frequency = 10
     time_frequency = 100
 
@@ -81,10 +81,10 @@ program main
     print *, "Average time per time step: ", total_elapsed / num_time_steps
 
     ! Count Metrics
-    print *, "Particles Removed:    ", flew_to_infinity + merged_in_sun + merged_together
-    print *, "Particles Fell into the Sun:    ", flew_to_infinity + merged_in_sun + merged_together
-    print *, "Particles Flew Off to Infinity:    ", flew_to_infinity + merged_in_sun + merged_together
-    print *, "Particles Merged Together:    ", flew_to_infinity + merged_in_sun + merged_together
-    print *, "Particles remaining: ", num_particles - flew_to_infinity - merged_in_sun - merged_together
+    print *, "Particles Removed:              ", flew_to_infinity + merged_in_sun + merged_together
+    print *, "Particles Fell into the Sun:    ", merged_in_sun
+    print *, "Particles Flew Off to Infinity: ", flew_to_infinity
+    print *, "Particles Merged Together:      ", merged_together
+    print *, "Particles remaining:            ", num_particles - flew_to_infinity - merged_in_sun - merged_together
 
 end program main

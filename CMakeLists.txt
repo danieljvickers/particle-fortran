@@ -12,7 +12,8 @@ enable_language(Fortran)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 
-option(USE_GPU "Enable GPU offloading" OFF)
+option(USE_GPU "Enable GPU offloading" ON)
+
 if(USE_GPU)
     add_compile_definitions(USE_GPU)
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fopenmp -foffload=nvptx-none")

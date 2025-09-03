@@ -6,7 +6,7 @@ contains
 
 subroutine save_all(particles, num_particles, directory, index)
     
-    type(particle_t), intent(in) :: particles
+    type(particle_type), intent(in) :: particles
     integer, intent(in) :: num_particles, index
     character(len=*), intent(in) :: directory
 

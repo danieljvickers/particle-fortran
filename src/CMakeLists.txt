@@ -18,3 +18,7 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
     target_compile_options(particle_fortran PRIVATE -warn all -O2)
 endif()
+
+# Add compile definition for GPU mode
+target_compile_definitions(particle_fortran PUBLIC USE_GPU)
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")

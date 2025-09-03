@@ -15,3 +15,7 @@ set_target_properties(simulation_lib PROPERTIES
 target_include_directories(simulation_lib PUBLIC
     ${CMAKE_BINARY_DIR}/mod
 )
+
+# Add compile definition for GPU mode
+target_compile_definitions(simulation_lib PUBLIC USE_GPU)
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
