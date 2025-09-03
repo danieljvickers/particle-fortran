@@ -32,8 +32,8 @@ program main
     num_particles = 8192  ! number of particles in the simulation
     mass_lower = 1e26  ! lower-bound mass of an astroid
     mass_upper = 1e27  ! upper-bound mass of an asteroid
-    radius_lower = 1.082e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
-    radius_upper = 1.5e11  ! upper-bound orbital radius of an asteroid, currently orbital radius of earth
+    radius_lower = 0.5e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
+    radius_upper = 2.5e11  ! upper-bound orbital radius of an asteroid, currently orbital radius of earth
     velocity_noise_bound = 0.001  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
 
     ! time step variables

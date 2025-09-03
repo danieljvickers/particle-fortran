@@ -17,39 +17,6 @@ contains
     end subroutine get_distance
 
 
-    subroutine parallel_euler_step(x, y, px, py, ax, ay, m, num_particles, dt)
-    implicit none
-    integer, intent(in) :: num_particles
-    real(8), intent(in) :: dt
-    real(8), intent(inout) :: x(:), y(:), px(:), py(:)
-    real(8), intent(in) :: ax(:), ay(:), m(:)
-
-    integer :: i
-    real(8) :: velocity_x, velocity_y
-
-#ifdef USE_GPU
-    !$omp target teams distribute parallel do default(shared) private(i, velocity_x, velocity_y) &
-    !$omp& map(to: ax(1:num_particles), ay(1:num_particles), m(1:num_particles)) &
-    !$omp& map(tofrom: x(1:num_particles), y(1:num_particles), px(1:num_particles), py(1:num_particles))
-#else
-    !$omp parallel do default(shared) private(i, velocity_x, velocity_y)
-#endif
-    do i = 1, num_particles
-        velocity_x = (px(i) / m(i)) + dt * ax(i)
-        velocity_y = (py(i) / m(i)) + dt * ay(i)
-
-        x(i)  = x(i)  + dt * velocity_x
-        y(i)  = y(i)  + dt * velocity_y
-        px(i) = m(i) * velocity_x
-        py(i) = m(i) * velocity_y
-    end do
-#ifndef USE_GPU
-    !$omp end parallel do
-#endif
-
-end subroutine parallel_euler_step
-
-
     subroutine handle_collisions(particles, num_particles, max_allowed_distance, merged_in_sun, flew_to_infinity, merged_together)
 
         integer :: i, j
@@ -172,8 +139,26 @@ end subroutine parallel_euler_step
 
         deallocate(ax_local, ay_local)
 
-        call parallel_euler_step(particles%x, particles%y, particles%px, particles%py, &
-                      particles%ax, particles%ay, particles%m, num_particles, dt)
+#ifdef USE_GPU
+        !$omp target teams distribute parallel do default(shared) private(i, velocity_x, velocity_y) &
+        !$omp& map(to: particles%ax(1:num_particles), particles%ay(1:num_particles), &
+        !$omp& particles%m(1:num_particles)) map(tofrom: particles%x(1:num_particles), &
+        !$omp& particles%y(1:num_particles), particles%px(1:num_particles), particles%py(1:num_particles))
+#else
+        !$omp parallel do default(shared) private(i, velocity_x, velocity_y)
+#endif
+        do i = 1, num_particles
+            velocity_x = (particles%px(i) / particles%m(i)) + dt * particles%ax(i)
+            velocity_y = (particles%py(i) / particles%m(i)) + dt * particles%ay(i)
+
+            particles%x(i)  = particles%x(i)  + dt * velocity_x
+            particles%y(i)  = particles%y(i)  + dt * velocity_y
+            particles%px(i) = particles%m(i) * velocity_x
+            particles%py(i) = particles%m(i) * velocity_y
+        end do
+#ifndef USE_GPU
+        !$omp end parallel do
+#endif
 
     end subroutine take_time_step
 

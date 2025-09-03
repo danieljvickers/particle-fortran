@@ -16,9 +16,22 @@ option(USE_GPU "Enable GPU offloading" ON)
 
 if(USE_GPU)
     add_compile_definitions(USE_GPU)
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fopenmp -foffload=nvptx-none")
+
+    # Detect if we are using NVHPC
+    if (CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+        # OpenMP GPU offload flags for NVHPC
+        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -mp=gpu -Minfo=accel")
+    else()
+        # Fallback for GNU or other compilers
+        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fopenmp -foffload=nvptx-none")
+    endif()
+
 else()
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fopenmp")
+    if (CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -mp")
+    else()
+        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fopenmp")
+    endif()
 endif()
 
 # ---- Executable target ----
