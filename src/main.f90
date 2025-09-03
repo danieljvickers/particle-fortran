@@ -29,7 +29,7 @@ program main
     integer :: merged_in_sun, flew_to_infinity, merged_together
     
     ! Variables used when initilizing the arrays
-    num_particles = 8192  ! number of particles in the simulation
+    num_particles = 1  ! number of particles in the simulation
     mass_lower = 1e26  ! lower-bound mass of an astroid
     mass_upper = 1e27  ! upper-bound mass of an asteroid
     radius_lower = 0.5e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
@@ -38,7 +38,7 @@ program main
 
     ! time step variables
     escape_radius = 20 * radius_upper
-    num_time_steps = 10
+    num_time_steps = 1
     dt = 60*60*2
     save_frequency = 10
     time_frequency = 100
@@ -50,19 +50,27 @@ program main
 
     ! initialize particles
     call initialize_particles()
+#ifdef USE_GPU
+    ! Move all particle arrays to the device once and keep them there
+    !$omp target enter data map(to: particles%x(1:num_particles), particles%y(1:num_particles), &
+    !$omp&                        particles%px(1:num_particles), particles%py(1:num_particles), &
+    !$omp&                        particles%ax(1:num_particles), particles%ay(1:num_particles), &
+    !$omp&                        particles%m(1:num_particles), particles%r(1:num_particles), &
+    !$omp&                        particles%merged(1:num_particles))
+#endif
 
     ! take time steps
     call system_clock(count_rate=count_rate)
     elapsed = dble(0.0)
 
     call system_clock(total_count_start)
-    call handle_collisions(particles, num_particles, escape_radius, merged_in_sun, flew_to_infinity, merged_together)   ! needs to be called once to handle all of the particles that may be overlapping
+    ! call handle_collisions(particles, num_particles, escape_radius, merged_in_sun, flew_to_infinity, merged_together)   ! needs to be called once to handle all of the particles that may be overlapping
     call save_all(particles, num_particles, "data", 0)
     do i = 1, num_time_steps
         call system_clock(count_start)
 
         call take_time_step(particles, num_particles, dt)
-        call handle_collisions(particles, num_particles, escape_radius, merged_in_sun, flew_to_infinity, merged_together)
+        ! call handle_collisions(particles, num_particles, escape_radius, merged_in_sun, flew_to_infinity, merged_together)
 
         call system_clock(count_end)
         elapsed = elapsed + real(count_end - count_start, 8) / real(count_rate, 8)
@@ -76,6 +84,12 @@ program main
         end if
     end do
     call system_clock(total_count_end)
+
+#ifdef USE_GPU
+    ! Bring back results
+    !$omp target exit data map(from: particles%x(1:num_particles), particles%y(1:num_particles), &
+    !$omp&                        particles%px(1:num_particles), particles%py(1:num_particles))
+#endif
 
     total_elapsed = real(total_count_end - total_count_start, 8) / real(count_rate, 8)
     print *, "Average time per time step: ", total_elapsed / num_time_steps

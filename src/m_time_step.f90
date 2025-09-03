@@ -7,6 +7,9 @@ module time_step
 
 contains
 
+#ifdef USE_GPU
+    !$omp declare target
+#endif
     subroutine get_distance(distance, x1, y1, x2, y2)
 
         real(8), intent(in) :: x1, y1, x2, y2
@@ -15,6 +18,9 @@ contains
         distance = sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
     end subroutine get_distance
+#ifndef USE_GPU
+    !$omp end declare target
+#endif
 
 
     subroutine handle_collisions(particles, num_particles, max_allowed_distance, merged_in_sun, flew_to_infinity, merged_together)
@@ -27,7 +33,11 @@ contains
         real(8), intent(in) :: max_allowed_distance
         integer, intent(inout) :: merged_in_sun, flew_to_infinity, merged_together
 
+#ifdef USE_GPU
+        
+#else
         !$omp parallel do private(i, j, distance)
+#endif
         do i = 1, num_particles
             if (particles%merged(i)) cycle
 
@@ -42,7 +52,9 @@ contains
                 particles%merged(i) = .true.
             end if
         end do
+#ifndef USE_GPU
         !$omp end parallel do
+#endif
 
         ! check for particle-to-particle merging
         ! TODO :: Consider swaping to an iterative parallel search and then serial merge.
@@ -91,59 +103,55 @@ contains
         integer, intent(in) :: num_particles
         real(8), intent(in) :: dt
 
-        !$omp parallel
-        n_threads = omp_get_num_threads()
-        !$omp end parallel
-
-        ! reset the memory on acceleration
-        allocate(ax_local(num_particles, n_threads))
-        allocate(ay_local(num_particles, n_threads))
-        ax_local = 0.0d0
-        ay_local = 0.0d0
-
-        !$omp parallel default(shared) private(i,j,distance,acceleration_x,acceleration_y,tid)
-        tid = omp_get_thread_num()
-
-        !$omp do schedule(dynamic)
+#ifdef USE_GPU
+        !$omp target teams distribute parallel do
+#else
+        !$omp parallel do default(shared) private(i, distance)
+#endif
         do i = 1, num_particles
-
+            print *, i, 'a'
+            ! if (particles%merged(i)) cycle
+            print *, i, 'b'
             call get_distance(distance, particles%x(i), particles%y(i), dble(0.0), dble(0.0))
-            ax_local(i, tid+1) = ax_local(i, tid+1) - (C_G * C_M_s * particles%x(i) / (distance**3))
-            ay_local(i, tid+1) = ay_local(i, tid+1) - (C_G * C_M_s * particles%y(i) / (distance**3))
+            print *, i, 'c'
+            particles%ax(i) = -C_G * C_M_s * particles%x(i) / (distance**3)
+            particles%ay(i) =  -C_G * C_M_s * particles%y(i) / (distance**3)
+        end do
+#ifndef USE_GPU
+        !$omp end parallel do
+#endif
 
+#ifdef USE_GPU
+        !$omp target teams distribute parallel do collapse(2) default(shared) private(distance, acceleration_x, acceleration_y)
+#else
+        !$omp parallel do default(shared) private(i, j, acceleration_x, acceleration_y)
+#endif
+        do i = 1, num_particles
             do j = i+1, num_particles
-                if (particles%merged(j)) cycle
+                if (particles%merged(j) .or. particles%merged(i)) cycle
 
                 call get_distance(distance, particles%x(i), particles%y(i), particles%x(j), particles%y(j))
                 acceleration_x = -C_G * particles%m(i) * particles%m(j) * (particles%x(i) - particles%x(j)) / (distance**3)
                 acceleration_y = -C_G * particles%m(i) * particles%m(j) * (particles%y(i) - particles%y(j)) / (distance**3)
 
                 ! We update each acceleration, using attomics to prevent race conditions in parallel
-                ax_local(i, tid+1) = ax_local(i, tid+1) + acceleration_x / particles%m(i)
-                ax_local(j, tid+1) = ax_local(j, tid+1) - acceleration_x / particles%m(j)
-                ay_local(i, tid+1) = ay_local(i, tid+1) + acceleration_y / particles%m(i)
-                ay_local(j, tid+1) = ay_local(j, tid+1) - acceleration_y / particles%m(j)
+                !$omp atomic update
+                particles%ax(i) = particles%ax(i) + acceleration_x / particles%m(i)
+                !$omp atomic update
+                particles%ax(j) = particles%ax(j) - acceleration_x / particles%m(j)
+                !$omp atomic update
+                particles%ay(i) = particles%ay(i) + acceleration_y / particles%m(i)
+                !$omp atomic update
+                particles%ay(j) = particles%ay(j) - acceleration_y / particles%m(j)
 
             end do
         end do
-        !$omp end do
-        !$omp end parallel
-
-        ! Reduce private arrays into the shared particles%ax, %ay
-        particles%ax = 0.0d0
-        particles%ay = 0.0d0
-        do tid = 1, n_threads
-            particles%ax = particles%ax + ax_local(:, tid)
-            particles%ay = particles%ay + ay_local(:, tid)
-        end do
-
-        deallocate(ax_local, ay_local)
+#ifndef USE_GPU
+        !$omp end parallel do
+#endif
 
 #ifdef USE_GPU
-        !$omp target teams distribute parallel do default(shared) private(i, velocity_x, velocity_y) &
-        !$omp& map(to: particles%ax(1:num_particles), particles%ay(1:num_particles), &
-        !$omp& particles%m(1:num_particles)) map(tofrom: particles%x(1:num_particles), &
-        !$omp& particles%y(1:num_particles), particles%px(1:num_particles), particles%py(1:num_particles))
+        !$omp target teams distribute parallel do default(shared) private(i, velocity_x, velocity_y)
 #else
         !$omp parallel do default(shared) private(i, velocity_x, velocity_y)
 #endif
