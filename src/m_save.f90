@@ -4,10 +4,9 @@ module save_data
 
 contains
 
-subroutine save_all(particles, num_particles, directory, index)
+subroutine save_all(directory, index)
     
-    type(particle_type), intent(in) :: particles
-    integer, intent(in) :: num_particles, index
+    integer, intent(in) :: index
     character(len=*), intent(in) :: directory
 
     character(len=256) :: filename
@@ -25,8 +24,8 @@ subroutine save_all(particles, num_particles, directory, index)
 
     ! Write interleaved doubles: x1,y1,x2,y2,...
     do i = 1, num_particles
-        if (.not. particles%merged(i)) then
-            write(unit) particles%x(i), particles%y(i), particles%px(i), particles%py(i), particles%r(i)
+        if (.not. merged(i)) then
+            write(unit) x(i), y(i), px(i), py(i), r(i)
         end if
     end do
 
