@@ -29,7 +29,7 @@ program main
     integer :: merged_in_sun, flew_to_infinity, merged_together
     
     ! Variables used when initilizing the arrays
-    num_particles = 1  ! number of particles in the simulation
+    num_particles = 65536  ! number of particles in the simulation
     mass_lower = 1e26  ! lower-bound mass of an astroid
     mass_upper = 1e27  ! upper-bound mass of an asteroid
     radius_lower = 0.5e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
@@ -38,10 +38,10 @@ program main
 
     ! time step variables
     escape_radius = 20 * radius_upper
-    num_time_steps = 1
+    num_time_steps = 1000
     dt = 60*60*2
     save_frequency = 10
-    time_frequency = 100
+    time_frequency = 1000
 
     ! counting metrics
     merged_in_sun = 0

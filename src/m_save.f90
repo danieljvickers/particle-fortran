@@ -11,6 +11,11 @@ subroutine save_all(directory, index)
 
     character(len=256) :: filename
     integer :: unit, ios, i
+
+    ! update data on GPU
+#ifdef USE_GPU
+    !$omp target update from(x, y, px, py, r)
+#endif
     
     write(filename, '(A,"/",I0,".bin")') trim(directory), index
 

@@ -5,6 +5,9 @@ module time_step
     use initialize_data
     implicit none
 
+    integer, allocatable :: collision_i(i), collision_j(:)
+    allocate(collision_i(num_particles/2), collision_j(num_particles/2))
+
 contains
 
 #ifdef USE_GPU
@@ -25,14 +28,14 @@ contains
 
     subroutine handle_collisions( max_allowed_distance, merged_in_sun, flew_to_infinity, merged_together)
 
-        integer :: i, j
+        integer :: i, j, num_collisions
         real(8) :: distance, x_com, y_com, combined_mass, merge_distance
 
         real(8), intent(in) :: max_allowed_distance
         integer, intent(inout) :: merged_in_sun, flew_to_infinity, merged_together
 
 #ifdef USE_GPU
-        
+        !$omp target teams distribute parallel do
 #else
         !$omp parallel do private(i, j, distance)
 #endif
@@ -56,12 +59,15 @@ contains
 
         ! check for particle-to-particle merging
         ! TODO :: Consider swaping to an iterative parallel search and then serial merge.
+#ifdef USE_GPU
+        !$omp target teams distribute parallel do
+#else
         !$omp parallel do private(i, j, distance, combined_mass)
+#endif
+        ! do a loop to record number of collisions
         do i = 1, num_particles
             do j = i+1, num_particles
-                if (merged(j)) then
-                    cycle  ! skips if the second particles has collided
-                end if
+                if (merged(i) .or. merged(j)) cycle  ! skips if the second particles has collided
 
                 call get_distance(distance, x(i), y(i), x(j), y(j))
                 if ( distance .le. r(i) + r(j)) then  ! true if they should collide perfectly inelasically
@@ -87,6 +93,9 @@ contains
                 end if
             end do
         end do
+#ifndef USE_GPU
+        !$omp end parallel do
+#endif
 
     end subroutine handle_collisions
 
