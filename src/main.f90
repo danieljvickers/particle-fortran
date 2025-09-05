@@ -38,7 +38,7 @@ program main
 
     ! time step variables
     escape_radius = 20 * radius_upper
-    num_time_steps = 100000
+    num_time_steps = 1000000
     dt = 60*60*2
     save_frequency = 10
     time_frequency = 100
@@ -50,7 +50,7 @@ program main
 
     ! initialize particles
     call initialize_particles()
-    allocate(collisions(num_particles))
+    allocate(collisions_forward(num_particles), collisions_reverse(num_particles))
 
 #ifdef USE_GPU
     ! Move all particle arrays to the device once and keep them there
@@ -59,7 +59,7 @@ program main
     !$omp&                        ax(1:num_particles), ay(1:num_particles), &
     !$omp&                        m(1:num_particles), r(1:num_particles), &
     !$omp&                        merged(1:num_particles), &
-    !$omp&                        collisions(1:num_particles))
+    !$omp&                        collisions_forward(1:num_particles), collisions_reverse(1:num_particles))
 #endif
 
     ! take time steps
@@ -82,7 +82,8 @@ program main
             call save_all("data", i)
         end if
         if (modulo(i, time_frequency) .eq. 0) then
-            print '(I5,A,I0,A,F8.4)', i, "    Elapsed time for previous " , time_frequency, " time steps is: ", elapsed
+            print '(I7,A,I0,A,F8.4,A,I5,A,I5)', i, " : Elapsed time for previous " , time_frequency, " time steps is ", elapsed, &
+                " : Particles Remain ", num_particles - flew_to_infinity - merged_in_sun - merged_together
             elapsed = dble(0.0)
         end if
     end do

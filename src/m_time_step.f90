@@ -3,7 +3,7 @@ module time_step
     use initialize_data
     implicit none
 
-    integer, allocatable :: collisions(:)
+    integer, allocatable :: collisions_forward(:), collisions_reverse(:)
 
 contains
 
@@ -68,7 +68,8 @@ contains
 
                 call get_distance(distance, x(i), y(i), x(j), y(j))
                 if ( distance .le. r(i) + r(j)) then  ! true if they should collide perfectly inelasically
-                    collisions(i) = j
+                    collisions_forward(i) = j
+                    collisions_reverse(j) = i
                 end if
             end do
         end do
@@ -77,25 +78,18 @@ contains
 #endif
 
 #ifdef USE_GPU
-        !$omp target update from(collisions)
+        !$omp target update from(collisions_forward, collisions_reverse)
 #endif
         do i = 1, num_particles
-            j = collisions(i)
+            j = collisions_forward(i)
             if (j .ne. 0) then
-                if (collisions(j) .ne. 0) then
-                    collisions(i) = 0
-                    cycle
+                if (collisions_reverse(j) .ne. i) then
+                    collisions_forward(i) = 0
                 end if
-                do k = i+1, num_particles
-                    if (collisions(k) .eq. j) then
-                        collisions(i) = 0
-                        exit
-                    end if
-                end do
             end if
         end do
 #ifdef USE_GPU
-        !$omp target update to(collisions)
+        !$omp target update to(collisions_forward, collisions_reverse)
 #endif
 
 
@@ -105,7 +99,8 @@ contains
         !$omp parallel do private(i, j, distance, combined_mass)
 #endif
         do i=1, num_particles
-            j = collisions(i)
+            collisions_reverse(i) = 0 ! conveniently reset the reverse list while I am here.    
+            j = collisions_forward(i)
             if (j .eq. 0) cycle
 
             px(i) = px(i) + px(j)
@@ -119,7 +114,7 @@ contains
 
             !$omp atomic
             merged_together = merged_together + 1
-            collisions(i) = 0
+            collisions_forward(i) = 0
         end do
 #ifndef USE_GPU
         !$omp end parallel do
