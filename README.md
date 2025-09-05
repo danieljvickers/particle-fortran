@@ -33,7 +33,7 @@ type :: particle_t
 end type particle_t
 ```
 
-I then wanted to randomly distribute the particles. The only note is that we are generating particles in an anulus. If we select a radius at random, then we will get a higher distribution of particles closer to the central star. To prevent this, we can either generate particles in cartesian coordinates and then check the radius bounds or normalize based on the amount of area. I randomized all variables like so:
+I then wanted to randomly distribute the particles. The only note is that we are generating particles in an anulus. If we select a radius at random, then we will get a higher distribution of particles closer to the central star. To prevent this, we can either generate particles in cartesian coordinates and then check the radius bounds or normalize based on the amount of area. I chose to normalize by area. This ultimately results in the least amount of calculations to perform, but it ultimately negligible in terms of compute time:
 
 ```fortran
 subroutine initialize_particles()
@@ -192,4 +192,4 @@ I also gathered performance metrics, averaged over 20 time steps, for an increas
 
 ![screenshot](docs/cpu_scaling_performance.png)
 
-This is already a very fast performance for baseline, with the largest test case being 2^18 particles which averaged 20.43 seconds. This is already very fast performance, and it will be interesting to see how we scale once we add a GPU.
+This is already a very fast performance for baseline, with the largest test case being 2^18 particles which averaged 20.43 seconds. We also clearly see the expected n-squared order time complexity from the system.

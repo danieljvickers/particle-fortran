@@ -53,7 +53,8 @@ def main():
     plt.xlabel('x (AU)', fontsize=18)
     plt.ylabel('y (AU)', fontsize=18)
 
-    plt.show()
+    # plt.show()
+    plt.savefig('out.png')
 
 
 if __name__ == '__main__':
