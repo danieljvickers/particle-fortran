@@ -9,7 +9,7 @@ plt.style.use('dark_background')
 data_path = "/home/dan/Documents/repos/particle-fortran/build/data"
 
 AU_in_meters = 149597870700
-marker_size_scale = 0.05
+marker_size_scale = 2000
 
 
 def main():
@@ -31,12 +31,12 @@ def main():
             norm_factor = np.mean(r_vals)
 
         while len(x_vals) > len(particles):
-            particles.append({'x':[], 'y':[], 'r': []})
+            particles.append({'x':[], 'y':[], 's': []})
 
         for i in range(len(x_vals)):
             particles[i]['x'].append(x_vals[i] / AU_in_meters)
             particles[i]['y'].append(y_vals[i] / AU_in_meters)
-            particles[i]['r'].append(marker_size_scale * (r_vals[i] / norm_factor)**3)
+            particles[i]['s'].append(marker_size_scale * (np.pi * (r_vals[i] / AU_in_meters)**2))
 
             if len(particles[i]['x']) < len(particles[0]['x']):
                 print(f"Found {len(particles[i]['x'])} time steps at particle {i}")
@@ -44,13 +44,13 @@ def main():
 
     def animation_function(i):
         plot_data = []
-        radii = []
+        area = []
         for j in range(len(particles)):
             if len(particles[j]['x']) > i:
                 plot_data.append((particles[j]['x'][i], particles[j]['y'][i]))
-                radii.append(particles[j]['r'][i])
+                area.append(particles[j]['s'][i])
         scatter.set_offsets(plot_data)
-        scatter.set_sizes(radii)
+        scatter.set_sizes(area)
     
     fig = plt.figure(figsize=(8, 8))
     ax = plt.gca()

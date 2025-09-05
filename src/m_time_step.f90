@@ -3,7 +3,7 @@ module time_step
     use initialize_data
     implicit none
 
-    integer, allocatable :: collisions_forward(:), collisions_reverse(:)
+    integer, allocatable :: collisions_forward(:), collisions_reverse(:), collision_reduced(:,:)
 
 contains
 
@@ -25,11 +25,13 @@ contains
 
     subroutine handle_collisions( max_allowed_distance, merged_in_sun, flew_to_infinity, merged_together)
 
-        integer :: i, j, k
+        integer :: i, j, k, collision_count
         real(8) :: distance, combined_mass
 
         real(8), intent(in) :: max_allowed_distance
         integer, intent(inout) :: merged_in_sun, flew_to_infinity, merged_together
+
+        collision_count = 0
 
 #ifdef USE_GPU
         !$omp target teams distribute parallel do map(tofrom: merged_in_sun, flew_to_infinity)
@@ -77,31 +79,38 @@ contains
         !$omp end parallel do
 #endif
 
+        ! reduce the collision paris
 #ifdef USE_GPU
-        !$omp target update from(collisions_forward, collisions_reverse)
-#endif
-        do i = 1, num_particles
-            j = collisions_forward(i)
-            if (j .ne. 0) then
-                if (collisions_reverse(j) .ne. i) then
-                    collisions_forward(i) = 0
-                end if
-            end if
-        end do
-#ifdef USE_GPU
-        !$omp target update to(collisions_forward, collisions_reverse)
-#endif
-
-
-#ifdef USE_GPU
-        !$omp target teams distribute parallel do map(tofrom: merged_together)
+        !$omp target teams distribute parallel do map(tofrom: collision_count)
 #else
-        !$omp parallel do private(i, j, distance, combined_mass)
+        !$omp parallel do private(i, j)
 #endif
         do i=1, num_particles
-            collisions_reverse(i) = 0 ! conveniently reset the reverse list while I am here.    
             j = collisions_forward(i)
-            if (j .eq. 0) cycle
+            if (j .eq. 0) cycle  ! checks if there is anything to collide with at all
+            if (collisions_reverse(j) .ne. i) cycle  ! checks that both particles are agreeing to merge. Prevents race conditions
+
+            !$omp atomic capture
+            k = collision_count
+            collision_count = collision_count + 1
+            !$omp end atomic
+            
+            collision_reduced(k+1, 1) = i
+            collision_reduced(k+1, 2) = j
+        end do
+#ifndef USE_GPU
+        !$omp end parallel do
+#endif
+
+
+#ifdef USE_GPU
+        !$omp target teams distribute parallel do map(to: collision_count)
+#else
+        !$omp parallel do private(i, j, k, combined_mass)
+#endif
+        do k=1, collision_count
+            i = collision_reduced(k, 1)
+            j = collision_reduced(k, 2)
 
             px(i) = px(i) + px(j)
             py(i) = py(i) + py(j)
@@ -111,14 +120,27 @@ contains
             m(i) = combined_mass
             r(i) = (m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)
             merged(j) = 1
-
-            !$omp atomic
-            merged_together = merged_together + 1
-            collisions_forward(i) = 0
         end do
 #ifndef USE_GPU
         !$omp end parallel do
 #endif
+
+        ! reset all memory for the next iteration
+#ifdef USE_GPU
+        !$omp target teams distribute parallel do
+#else
+        !$omp parallel do private(i)
+#endif
+        do i=1, num_particles
+            collisions_forward(i) = 0
+            collisions_reverse(i) = 0
+        end do
+#ifndef USE_GPU
+        !$omp end parallel do
+#endif
+
+        ! update total collisions
+        merged_together = merged_together + collision_count
 
     end subroutine handle_collisions
 

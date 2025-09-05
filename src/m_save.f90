@@ -39,4 +39,37 @@ subroutine save_all(directory, index)
 
 end subroutine save_all
 
+
+subroutine coallese_particles()
+
+    integer :: num_shifted, i
+
+    num_shifted = 0
+
+#ifdef USE_GPU
+    !$omp target update from(x, y, px, py, r, m, merged)
+#endif
+
+    do i=1, num_particles
+        if (merged(i) .eq. 1) then
+            num_shifted = num_shifted + 1
+            merged(i) = 0
+        else
+            x(i-num_shifted) = x(i)
+            y(i-num_shifted) = y(i)
+            px(i-num_shifted) = px(i)
+            py(i-num_shifted) = py(i)
+            r(i-num_shifted) = r(i)
+            m(i-num_shifted) = m(i)
+        end if
+    end do
+
+    num_particles = num_particles - num_shifted
+
+#ifdef USE_GPU
+    !$omp target update to(x, y, px, py, r, m, merged)
+#endif
+
+end subroutine coallese_particles
+
 end module save_data
