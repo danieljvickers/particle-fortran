@@ -1,12 +1,9 @@
 module time_step
-    use omp_lib
-
     use constants
     use initialize_data
     implicit none
 
-    integer, allocatable :: collision_i(i), collision_j(:)
-    allocate(collision_i(num_particles/2), collision_j(num_particles/2))
+    integer, allocatable :: collisions(:)
 
 contains
 
@@ -28,29 +25,29 @@ contains
 
     subroutine handle_collisions( max_allowed_distance, merged_in_sun, flew_to_infinity, merged_together)
 
-        integer :: i, j, num_collisions
-        real(8) :: distance, x_com, y_com, combined_mass, merge_distance
+        integer :: i, j, k
+        real(8) :: distance, combined_mass
 
         real(8), intent(in) :: max_allowed_distance
         integer, intent(inout) :: merged_in_sun, flew_to_infinity, merged_together
 
 #ifdef USE_GPU
-        !$omp target teams distribute parallel do
+        !$omp target teams distribute parallel do map(tofrom: merged_in_sun, flew_to_infinity)
 #else
         !$omp parallel do private(i, j, distance)
 #endif
         do i = 1, num_particles
-            if (merged(i)) cycle
+            if (merged(i) .eq. 1) cycle
 
             ! check for solar merges
             call get_distance(distance, x(i), y(i), dble(0.0), dble(0.0))
             if ((distance .le. C_R_s)) then
                 ! TODO :: for now we assume the particle is so small that it has no mass comapred to sun
                 merged_in_sun = merged_in_sun + 1
-                merged(i) = .true.
+                merged(i) = 1
             else if (distance .ge. max_allowed_distance) then
                 flew_to_infinity = flew_to_infinity + 1
-                merged(i) = .true.
+                merged(i) = 1
             end if
         end do
 #ifndef USE_GPU
@@ -62,36 +59,67 @@ contains
 #ifdef USE_GPU
         !$omp target teams distribute parallel do
 #else
-        !$omp parallel do private(i, j, distance, combined_mass)
+        !$omp parallel do private(i, j, distance)
 #endif
         ! do a loop to record number of collisions
         do i = 1, num_particles
             do j = i+1, num_particles
-                if (merged(i) .or. merged(j)) cycle  ! skips if the second particles has collided
+                if ((merged(i) .eq. 1) .or. (merged(j) .eq. 1)) cycle  ! skips if the second particles has collided
 
                 call get_distance(distance, x(i), y(i), x(j), y(j))
                 if ( distance .le. r(i) + r(j)) then  ! true if they should collide perfectly inelasically
-
-                    !$omp critical
-                    merged_together = merged_together + 1
-                    ! add the momentum
-                    px(i) = px(i) + px(j)
-                    py(i) = py(i) + py(j)
-
-                    ! compute the center of mass and move particles
-                    combined_mass = m(i) + m(j)
-                    x(i) = (x(i) * m(i) + x(j) * m(j)) / combined_mass
-                    y(i) = (y(i) * m(i) + y(j) * m(j)) / combined_mass
-                    
-                    ! update mass and radius
-                    m(i) = combined_mass
-                    r(i) = (m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)
-
-                    ! count the second particle as merged
-                    merged(j) = .True.
-                    !$omp end critical
+                    collisions(i) = j
                 end if
             end do
+        end do
+#ifndef USE_GPU
+        !$omp end parallel do
+#endif
+
+#ifdef USE_GPU
+        !$omp target update from(collisions)
+#endif
+        do i = 1, num_particles
+            j = collisions(i)
+            if (j .ne. 0) then
+                if (collisions(j) .ne. 0) then
+                    collisions(i) = 0
+                    cycle
+                end if
+                do k = i+1, num_particles
+                    if (collisions(k) .eq. j) then
+                        collisions(i) = 0
+                        exit
+                    end if
+                end do
+            end if
+        end do
+#ifdef USE_GPU
+        !$omp target update to(collisions)
+#endif
+
+
+#ifdef USE_GPU
+        !$omp target teams distribute parallel do map(tofrom: merged_together)
+#else
+        !$omp parallel do private(i, j, distance, combined_mass)
+#endif
+        do i=1, num_particles
+            j = collisions(i)
+            if (j .eq. 0) cycle
+
+            px(i) = px(i) + px(j)
+            py(i) = py(i) + py(j)
+            combined_mass = m(i) + m(j)
+            x(i) = (x(i)*m(i) + x(j)*m(j)) / combined_mass
+            y(i) = (y(i)*m(i) + y(j)*m(j)) / combined_mass
+            m(i) = combined_mass
+            r(i) = (m(i) / C_Density * 0.75 / C_PI)**(1.0/3.0)
+            merged(j) = 1
+
+            !$omp atomic
+            merged_together = merged_together + 1
+            collisions(i) = 0
         end do
 #ifndef USE_GPU
         !$omp end parallel do
@@ -113,7 +141,7 @@ contains
         !$omp parallel do default(shared) private(i, distance)
 #endif
         do i = 1, num_particles
-            if (merged(i)) cycle
+            if (merged(i) .eq. 1) cycle
             call get_distance(distance, x(i), y(i), dble(0.0), dble(0.0))
             ax(i) = -C_G * C_M_s * x(i) / (distance**3)
             ay(i) =  -C_G * C_M_s * y(i) / (distance**3)
@@ -129,7 +157,7 @@ contains
 #endif
         do i = 1, num_particles
             do j = i+1, num_particles
-                if (merged(j) .or. merged(i)) cycle
+                if ((merged(i) .eq. 1) .or. (merged(j) .eq. 1)) cycle
 
                 call get_distance(distance, x(i), y(i), x(j), y(j))
                 acceleration_x = -C_G * m(i) * m(j) * (x(i) - x(j)) / (distance**3)

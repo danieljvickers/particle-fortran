@@ -14,7 +14,7 @@ subroutine save_all(directory, index)
 
     ! update data on GPU
 #ifdef USE_GPU
-    !$omp target update from(x, y, px, py, r)
+    !$omp target update from(x, y, px, py, r, merged)
 #endif
     
     write(filename, '(A,"/",I0,".bin")') trim(directory), index
@@ -29,7 +29,7 @@ subroutine save_all(directory, index)
 
     ! Write interleaved doubles: x1,y1,x2,y2,...
     do i = 1, num_particles
-        if (.not. merged(i)) then
+        if (merged(i) .eq. 0) then
             write(unit) x(i), y(i), px(i), py(i), r(i)
         end if
     end do

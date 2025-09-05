@@ -29,19 +29,19 @@ program main
     integer :: merged_in_sun, flew_to_infinity, merged_together
     
     ! Variables used when initilizing the arrays
-    num_particles = 65536  ! number of particles in the simulation
+    num_particles = 32768  ! number of particles in the simulation
     mass_lower = 1e26  ! lower-bound mass of an astroid
     mass_upper = 1e27  ! upper-bound mass of an asteroid
     radius_lower = 0.5e11  ! lower-bound orbital radius of an asteroid, currently orbital radius of venus
     radius_upper = 2.5e11  ! upper-bound orbital radius of an asteroid, currently orbital radius of earth
-    velocity_noise_bound = 0.001  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
+    velocity_noise_bound = 0.1  ! the upper bound of the fraction of the velocity that will be perturbed from the ideal orbital velocity
 
     ! time step variables
     escape_radius = 20 * radius_upper
-    num_time_steps = 1000
+    num_time_steps = 100000
     dt = 60*60*2
     save_frequency = 10
-    time_frequency = 1000
+    time_frequency = 100
 
     ! counting metrics
     merged_in_sun = 0
@@ -50,6 +50,7 @@ program main
 
     ! initialize particles
     call initialize_particles()
+    allocate(collisions(num_particles))
 
 #ifdef USE_GPU
     ! Move all particle arrays to the device once and keep them there
@@ -57,7 +58,8 @@ program main
     !$omp&                        px(1:num_particles), py(1:num_particles), &
     !$omp&                        ax(1:num_particles), ay(1:num_particles), &
     !$omp&                        m(1:num_particles), r(1:num_particles), &
-    !$omp&                        merged(1:num_particles))
+    !$omp&                        merged(1:num_particles), &
+    !$omp&                        collisions(1:num_particles))
 #endif
 
     ! take time steps
@@ -65,13 +67,13 @@ program main
     elapsed = dble(0.0)
 
     call system_clock(total_count_start)
-    ! call handle_collisions(particles, num_particles, escape_radius, merged_in_sun, flew_to_infinity, merged_together)   ! needs to be called once to handle all of the particles that may be overlapping
+    call handle_collisions(escape_radius, merged_in_sun, flew_to_infinity, merged_together)   ! needs to be called once to handle all of the particles that may be overlapping
     call save_all("data", 0)
     do i = 1, num_time_steps
         call system_clock(count_start)
 
         call take_time_step(dt)
-        ! call handle_collisions(particles, num_particles, escape_radius, merged_in_sun, flew_to_infinity, merged_together)
+        call handle_collisions(escape_radius, merged_in_sun, flew_to_infinity, merged_together)
 
         call system_clock(count_end)
         elapsed = elapsed + real(count_end - count_start, 8) / real(count_rate, 8)
